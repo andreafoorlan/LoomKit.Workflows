@@ -1,0 +1,68 @@
+name: Publish NuGet package
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  id-token: write # required for NuGet.org Trusted Publishing (OIDC)
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history, needed by Source Link
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build
+
+      - name: Verify csproj version matches the pushed tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          CSPROJ_VERSION=$(dotnet msbuild src/LoomKit.Workflows.csproj -getProperty:Version)
+
+          echo "Tag version:    $TAG_VERSION"
+          echo "csproj version: $CSPROJ_VERSION"
+
+          if [ "$CSPROJ_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::<Version> in src/LoomKit.Workflows.csproj ($CSPROJ_VERSION) does not match tag $GITHUB_REF_NAME (expected $TAG_VERSION). Bump <Version> in the csproj to $TAG_VERSION, commit, then re-tag."
+            exit 1
+          fi
+
+      - name: Pack
+        run: dotnet pack src/LoomKit.Workflows.csproj --configuration Release --no-build --output artifacts
+
+      # Trusted Publishing: exchange this job's GitHub OIDC token for a short-lived (1h) NuGet API key.
+      # No long-lived secret to store/rotate - requires a Trusted Publishing policy configured on
+      # nuget.org for this repo + this workflow file (nuget.org -> username -> Trusted Publishing).
+      - name: NuGet login (OIDC -> temp API key)
+        uses: NuGet/login@v1
+        id: nuget_login
+        with:
+          user: ${{ secrets.NUGET_USER }} # your nuget.org profile name, NOT your email
+
+      - name: Push to NuGet.org
+        run: dotnet nuget push "artifacts/*.nupkg" --api-key "${{ steps.nuget_login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: Attach packages to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag || true
+          gh release upload "$GITHUB_REF_NAME" artifacts/*.nupkg artifacts/*.snupkg --clobber

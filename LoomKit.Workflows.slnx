@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LoomKit.Workflows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LoomKit.Workflows.Tests/LoomKit.Workflows.Tests.csproj" />
+  </Folder>
+</Solution>
