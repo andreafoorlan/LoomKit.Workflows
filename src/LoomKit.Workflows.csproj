@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <Version>1.0.0</Version>
+    <Version>10.0.1</Version>
     <PackageId>LoomKit.Workflows</PackageId>
     <Authors>Andrea Furlan</Authors>
     <Description>A workflow orchestration library for .NET built around a job-queue model: workflows are sequences of activities executed through named queues and consumers, with support for branching, fork/re-join, resume-token-based pausing, retry middleware, and a fully extensible handler pipeline.</Description>
