@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <Version>10.0.1</Version>
+    <Version>10.0.2</Version>
     <PackageId>LoomKit.Workflows</PackageId>
     <Authors>Andrea Furlan</Authors>
     <Description>A workflow orchestration library for .NET built around a job-queue model: workflows are sequences of activities executed through named queues and consumers, with support for branching, fork/re-join, resume-token-based pausing, retry middleware, and a fully extensible handler pipeline.</Description>
@@ -32,8 +32,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="LoomKit.Workflows.Abstractions" Version="10.0.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
   </ItemGroup>
