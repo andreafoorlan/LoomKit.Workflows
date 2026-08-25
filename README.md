@@ -22,7 +22,18 @@ A workflow orchestration library for .NET built around the same job-queue model 
 ## Requirements
 
 - .NET 10 or later
-- Runtime dependencies: `Microsoft.Extensions.DependencyInjection.Abstractions`, `Microsoft.Extensions.Hosting.Abstractions`, `Microsoft.Extensions.Logging.Abstractions`
+- Depends on [`LoomKit.Workflows.Abstractions`](https://github.com/andreafoorlan/LoomKit.Workflows.Abstractions) (the interfaces, abstract base types, and models, in their own package) plus `Microsoft.Extensions.DependencyInjection.Abstractions` and `Microsoft.Extensions.Logging.Abstractions`
+
+## Architecture: split from `LoomKit.Workflows.Abstractions`
+
+The interfaces (`IActivity`, `IActivityHandler<,>`, `IActivityQueue`, `IActivityConsumer`, `IWorkflowManager`, `IWorkflowManagerSeeder`, `IWorkflowContext`, the `IWorkflowStep` family), the models every consumer touches (`ActivitySchedule`, `ActivityStatus`, `ResumeToken`, `JoinArrival`, the `WorkflowStep<,>` hierarchy), the manager event args, and the abstract base types (`Activity<>`, `WorkflowContext`, `ActivityMiddleware<,>`, `WorkflowManager<>`, `WorkflowManagerOptions(Builder)`, `ActivityQueueOptions(Builder)`, `ActivityConsumerOptions(Builder)`) live in the separate, lighter [`LoomKit.Workflows.Abstractions`](https://github.com/andreafoorlan/LoomKit.Workflows.Abstractions) package, which this package references. `LoomKit.Workflows` adds the concrete pieces on top: `DefaultWorkflowManager`, `InProcessActivityQueue`, `ActivityConsumer`, the DI registration helpers, the built-in retry middleware, and tracing.
+
+This means a project that only needs to *define* activities/handlers/workflow contexts — typically a domain/DDD class library that shouldn't know how activities get queued or consumed — can depend on `LoomKit.Workflows.Abstractions` alone, keeping the concrete manager implementation confined to your application/composition-root layer:
+
+```bash
+dotnet add package LoomKit.Workflows.Abstractions   # domain layer: define IActivity/IActivityHandler and workflow contexts
+dotnet add package LoomKit.Workflows                # application layer: wire up the manager
+```
 
 ## Installation
 
@@ -32,7 +43,7 @@ A workflow orchestration library for .NET built around the same job-queue model 
 dotnet add package LoomKit.Workflows
 ```
 
-Available on [nuget.org](https://www.nuget.org/packages/LoomKit.Workflows) once the first tagged release (`v1.0.0`) has been published — a package version is published automatically for every `vX.Y.Z` tag pushed to this repo.
+Available on [nuget.org](https://www.nuget.org/packages/LoomKit.Workflows) — a package version is published automatically for every `vX.Y.Z` tag pushed to this repo.
 
 If you'd rather build against the source directly instead (e.g. to track `main`, or to debug/modify the library alongside your app), two options:
 
