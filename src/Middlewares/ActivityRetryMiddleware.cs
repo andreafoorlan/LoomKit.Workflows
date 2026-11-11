@@ -52,11 +52,19 @@ public class ActivityRetryMiddleware<TActivity, TWorkflowContext>
                     ["retries_left"] = activitySchedule.RetriesLeft - 1
                 }));
 
+                // Wait ActivityRetryInterval (ms, from the queue the schedule came from) before the next
+                // attempt, so a transient failure (e.g. a downstream service restarting) isn't retried
+                // back to back and burned through all the retries within a few milliseconds.
+                var queueOptions = await _workflowManager.GetActivityQueueOptionsAsync(
+                    activitySchedule.ActivityStatus.QueueName,
+                    cancellationToken);
+                var retryAt = DateTime.UtcNow.AddMilliseconds(queueOptions.ActivityRetryInterval);
+
                 // Retry attempts use the same TraceParent as the current attempt so they appear as siblings
                 var retrySchedule = activitySchedule with
                 {
                     RetriesLeft = activitySchedule.RetriesLeft - 1,
-                    NextAt = DateTime.UtcNow,
+                    NextAt = retryAt,
                     ActivityStatus = new ActivityStatus(),
                     TraceParent = activitySchedule.TraceParent
                 };

@@ -10,7 +10,10 @@ internal static class TestServiceProviderFactory
     public const string QueueName = "test-queue";
     public const string ConsumerName = "test-consumer";
 
-    public static ServiceProvider Build(Action<ActivityConsumerOptionsBuilder>? configureConsumer = null, Action<ActivityQueueOptionsBuilder>? configureQueue = null)
+    public static ServiceProvider Build(
+        Action<ActivityConsumerOptionsBuilder>? configureConsumer = null,
+        Action<ActivityQueueOptionsBuilder>? configureQueue = null,
+        Action<IServiceCollection>? configureServices = null)
     {
         var services = new ServiceCollection();
 
@@ -30,6 +33,10 @@ internal static class TestServiceProviderFactory
         services.AddScoped<IActivityHandler<ExplicitlyFailingBranchActivity, TestWorkflowContext>, ExplicitlyFailingBranchActivityHandler>();
         services.AddScoped<IActivityHandler<FailOutrightActivity, TestWorkflowContext>, FailOutrightActivityHandler>();
         services.AddScoped<IActivityHandler<CollectJoinPointActivity, TestWorkflowContext>, CollectJoinPointActivityHandler>();
+        services.AddScoped<IActivityHandler<FlakyActivity, TestWorkflowContext>, FlakyActivityHandler>();
+        services.AddScoped<IActivityHandler<ScopedDependencyActivity, TestWorkflowContext>, ScopedDependencyActivityHandler>();
+
+        configureServices?.Invoke(services);
 
         services.AddDefaultWorkflowManager(builder => builder
             .UseQueue<InProcessActivityQueue>(QueueName, q =>

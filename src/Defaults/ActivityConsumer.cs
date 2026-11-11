@@ -71,9 +71,20 @@ public class ActivityConsumer : IActivityConsumer
             {
                 while (!_linkedCts.Token.IsCancellationRequested)
                 {
-                    var schedule = await _activityQueue.AwaitForActivityScheduleAsync(
-                        _activityConsumerOptions.ActivityConsumerName,
-                        _linkedCts.Token);
+                    ActivitySchedule? schedule;
+
+                    try
+                    {
+                        schedule = await _activityQueue.AwaitForActivityScheduleAsync(
+                            _activityConsumerOptions.ActivityConsumerName,
+                            _linkedCts.Token);
+                    }
+                    catch (OperationCanceledException) when (_linkedCts.Token.IsCancellationRequested)
+                    {
+                        // stop requested while waiting for the next activity: the queue honours the
+                        // token by throwing, which is the normal way out of the loop, not an error
+                        break;
+                    }
 
                     if (schedule is null)
                         continue;
@@ -141,7 +152,9 @@ public class ActivityConsumer : IActivityConsumer
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogError(ex, "[{ConsumerName}] Operation canceled during StopAsync", _activityConsumerOptions.ActivityConsumerName);
+            // the consumer loop treats its own cancellation as a normal exit, so this is the caller's
+            // token cancelling the wait: shutdown was cut short, same as the timeout warning above
+            _logger.LogWarning(ex, "[{ConsumerName}] Stop was canceled before the consumer finished", _activityConsumerOptions.ActivityConsumerName);
         }
         catch (Exception ex)
         {
@@ -172,12 +185,14 @@ public class ActivityConsumer : IActivityConsumer
         });
 
         IServiceProvider serviceProvider = _serviceProvider;
-        IServiceScope? scope = null;
+        AsyncServiceScope? scope = null;
 
         if (_activityConsumerOptions.UseScopedServiceProvider)
         {
-            scope = _serviceProvider.CreateScope();
-            serviceProvider = scope.ServiceProvider;
+            // async scope: a synchronous Dispose() throws for scoped services that only implement
+            // IAsyncDisposable (e.g. a pooled DbContext), and would skip their async cleanup
+            scope = _serviceProvider.CreateAsyncScope();
+            serviceProvider = scope.Value.ServiceProvider;
         }
 
         try
@@ -188,7 +203,9 @@ public class ActivityConsumer : IActivityConsumer
         {
             schedule.ActivityStatus.EndedAt = DateTime.UtcNow;
             _currentActivitySchedule = null;
-            scope?.Dispose();
+
+            if (scope.HasValue)
+                await scope.Value.DisposeAsync();
         }
     }
 
